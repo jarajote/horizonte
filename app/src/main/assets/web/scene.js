@@ -648,10 +648,10 @@
   }
   function rebuild() { buildSky(S.pal); buildSea(S.pal); buildLand(S.pal); }
 
-  let lastFrame = 0, lastSim = 0;
+  let lastFrame = 0, lastSim = 0, holdUntil = 0;
   function frame(ts) {
     requestAnimationFrame(frame);
-    if (document.hidden || ts - lastFrame < 32) return;
+    if (document.hidden || ts - lastFrame < 32 || ts < holdUntil) return;
     lastFrame = ts;
     const ms = now(), t = ms / 1000;
     const dtSim = lastSim ? ms - lastSim : 0; lastSim = ms;
@@ -688,6 +688,8 @@
     start,
     now,
     setWeather(w) { Object.assign(S.weather, w); S.lastBuild = -1e15; },
+    // Pausa breve del dibujo para que la interfaz responda al mando sin tirones
+    hold(ms) { holdUntil = performance.now() + ms; },
     state() {
       const p = S.pal || palette(10, false, 20);
       return { night: S.night, e: S.e, ui: S.night > 0.3 ? '#F3EDE8' : '#2B231E', accent: mix(p.sun, p.cliff, 0.35), dock: mix(p.cliffSh, '#000000', 0.25), drawer: mix(mix(p.cliffSh, p.mtNear, 0.5), '#000000', 0.55), sky: p.skyTop, hor: p.skyHor, path: p.path, sun: p.sun };

@@ -71,15 +71,12 @@ juanitaBirth: '2026-10-04T12:00:00',
 lat: 36.0773, lon: -5.4258
 ```
 
-### Icono propio para un hueco
+### Icono propio para un hueco del dock
 
-Copia un PNG cuadrado llamado `kodi`, `youtube`, `futbol`, `spotify` o `ps5` (con su extensión) en:
+Sube una imagen cuadrada (PNG o JPG) a la raíz de este repositorio con el nombre del hueco:
+`icono-ps5.png`, `icono-kodi.png`, `icono-youtube.png`, `icono-futbol.png` o `icono-spotify.png`.
 
-```
-Android/data/com.alejandro.horizonte/files/icons/
-```
-
-Puedes hacerlo con un explorador de archivos en la tele, o con `adb push` si usas ordenador.
+Desde el iPhone: abre github.com/jarajote/horizonte en Safari (si no ves el botón, pide la versión de escritorio con **aA**), pulsa **Add file → Upload files**, elige la imagen y pulsa **Commit changes**. La tele la recoge la próxima vez que pulses Home, en un par de minutos como mucho. Para volver al icono normal, borra la imagen del repositorio.
 
 ## Con ordenador (alternativa)
 

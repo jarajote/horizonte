@@ -128,9 +128,35 @@
     });
   }
 
+  // Iconos propios subidos al repositorio de GitHub como icono-<hueco>.png (icono-ps5.png, icono-kodi.png…)
+  let ICONS = store.get('icons', {});
+  let iconsChecked = 0;
+  async function syncIcons(force) {
+    if (!CFG.repo || (!force && Date.now() - iconsChecked < 2 * 60 * 1000)) return;
+    iconsChecked = Date.now();
+    try {
+      const r = await fetch(`https://api.github.com/repos/${CFG.repo}/contents/?ref=main`);
+      if (!r.ok) return;
+      const list = await r.json(), next = {};
+      let changed = false;
+      for (const f of list) {
+        const m = /^icono-([a-z0-9]+)\.(png|jpe?g|webp)$/i.exec(f.name || '');
+        if (!m) continue;
+        const slot = m[1].toLowerCase();
+        if (ICONS[slot] && ICONS[slot].sha === f.sha) { next[slot] = ICONS[slot]; continue; }
+        const blob = await (await fetch(f.download_url)).blob();
+        const data = await new Promise(res => { const fr = new FileReader(); fr.onload = () => res(fr.result); fr.readAsDataURL(blob); });
+        next[slot] = { sha: f.sha, data }; changed = true;
+      }
+      if (Object.keys(next).length !== Object.keys(ICONS).length) changed = true;
+      if (changed) { ICONS = next; store.set('icons', ICONS); renderDock(); }
+    } catch (e) { /* sin conexión: seguimos con los guardados */ }
+  }
+
   function tileInner(s) {
     const custom = safe(() => NATIVE.customIcon(s.id), '');
     if (custom) return `<img src="${custom}" class="contain" alt="">`;
+    if (ICONS[s.id]) return `<img src="${ICONS[s.id].data}" alt="">`;
     if (s.pkg) { const ic = iconFor(s.pkg); if (ic) return `<img src="${ic}" class="contain" alt="">`; }
     return GLYPH[s.id] || GLYPH.hdmi;
   }
@@ -139,6 +165,7 @@
     SLOTS.forEach((s, i) => {
       const el = document.createElement('div'); el.className = 'tile'; el.dataset.i = i;
       el.innerHTML = tileInner(s) + '<i class="live"></i>';
+      if (ICONS[s.id]) el.classList.add('custom');
       if (s.id === 'ps5' && s.hdmi && HDMI.find(h => h.id === s.hdmi && h.cec)) el.classList.add('on');
       dock.appendChild(el);
     });
@@ -253,6 +280,7 @@
   const OK_KEYS = ['Enter', 'NumpadEnter', ' '];
   addEventListener('keydown', e => {
     const k = e.key;
+    HZScene.hold(500);
     if (OK_KEYS.includes(k) || e.keyCode === 23 || e.keyCode === 13) {
       e.preventDefault();
       if (!pressing) { pressing = true; longFired = false; pressT = setTimeout(() => { longFired = true; onLong(); }, 650); }
@@ -287,6 +315,7 @@
   // Llamadas desde Android
   window.hzBack = () => { if (mode === 'drawer') { closeDrawer(); return true; } focus = { area: 'dock', i: bestSlot() }; paintFocus(); return false; };
   window.hzResume = () => {
+    syncIcons(false);
     loadApps(); resolveSlots(); renderDock();
     if (mode === 'drawer') closeDrawer();
     focus = { area: 'dock', i: bestSlot() }; paintFocus();
@@ -306,6 +335,7 @@
   loadApps(); resolveSlots(); renderDock();
   focus = { area: 'dock', i: bestSlot() }; paintFocus();
   setTimeout(homeReminder, 1500);
+  setTimeout(() => syncIcons(true), 2500);
   if (qs.get('update')) setTimeout(() => window.hzUpdateAvailable('v9'), 1200);
   if (qs.get('drawer')) openDrawer(qs.get('drawer') === 'pick' ? 'pick' : 'apps', 3);
 })();
