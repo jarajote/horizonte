@@ -14,3 +14,7 @@ Launcher para la TV TCL de Ale (Android TV 12). La interfaz y la escena son web 
 - Comprueba el Kotlin con kotlinc contra `android.jar` si no hay SDK disponible.
 
 Enlace de instalación (Downloader): https://is.gd/CeIgq1, que apunta a releases/latest/download/horizonte.apk.
+
+## Ojo
+
+- No recomendar nunca «Forzar detención» de Horizonte: Android desactiva el servicio de accesibilidad del botón Home. La app busca diseño nuevo cada 2 minutos al volver a la home y lo aplica sola, y busca APK nuevo cada 10.

@@ -25,9 +25,12 @@ object Updater {
     private const val BRANCH = "main"
     private const val RAW = "https://raw.githubusercontent.com/$REPO/$BRANCH/app/src/main/assets/web/"
     private const val RELEASES = "https://api.github.com/repos/$REPO/releases/latest"
-    private const val CHECK_EVERY = 30 * 60 * 1000L
+    // El diseño se mira a menudo (raw.githubusercontent no tiene límite); el APK, cada 10 min (API limitada a 60/h)
+    private const val WEB_EVERY = 2 * 60 * 1000L
+    private const val APK_EVERY = 10 * 60 * 1000L
 
-    @Volatile private var lastCheck = 0L
+    @Volatile private var lastWeb = 0L
+    @Volatile private var lastApk = 0L
     @Volatile var apkUrl: String? = null
     @Volatile var apkTag: Int = 0
 
@@ -60,15 +63,16 @@ object Updater {
      */
     fun check(ctx: Context, force: Boolean, onWebReady: () -> Unit, onApk: (Int) -> Unit) {
         val now = System.currentTimeMillis()
-        if (!force && now - lastCheck < CHECK_EVERY) {
-            if (apkTag > nativeVersion(ctx)) onApk(apkTag)
-            return
-        }
-        lastCheck = now
+        val doWeb = force || now - lastWeb >= WEB_EVERY
+        val doApk = force || now - lastApk >= APK_EVERY
+        if (!doApk && apkTag > nativeVersion(ctx)) onApk(apkTag)
+        if (!doWeb && !doApk) return
+        if (doWeb) lastWeb = now
+        if (doApk) lastApk = now
         val app = ctx.applicationContext
         Thread {
-            try { if (updateWeb(app)) onWebReady() } catch (_: Exception) {}
-            try {
+            if (doWeb) try { if (updateWeb(app)) onWebReady() } catch (_: Exception) {}
+            if (doApk) try {
                 val j = JSONObject(get(RELEASES))
                 val tag = j.optString("tag_name").trimStart('v', 'V').toIntOrNull() ?: 0
                 val assets = j.optJSONArray("assets")

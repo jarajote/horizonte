@@ -44,6 +44,7 @@ class MainActivity : Activity() {
     private val main = Handler(Looper.getMainLooper())
     private var tvInputs: TvInputManager? = null
     @Volatile private var webUpdated = false
+    @Volatile private var isResumed = false
 
     private val packagesChanged = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, i: Intent?) { js("window.hzResume && hzResume()") }
@@ -109,6 +110,7 @@ class MainActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        isResumed = true
         web.onResume()
         web.resumeTimers()
         if (!reloadIfUpdated()) js("window.hzResume && hzResume()")
@@ -125,11 +127,16 @@ class MainActivity : Activity() {
 
     private fun checkUpdates(force: Boolean) {
         Updater.check(this, force,
-            onWebReady = { webUpdated = true },
+            onWebReady = {
+                webUpdated = true
+                // Si la home está a la vista, aplicamos el diseño nuevo ya mismo
+                main.post { if (isResumed) reloadIfUpdated() }
+            },
             onApk = { tag -> js("window.hzUpdateAvailable && hzUpdateAvailable('v$tag')") })
     }
 
     override fun onPause() {
+        isResumed = false
         // Pausamos la animación mientras se ve otra app para no gastar CPU
         web.onPause()
         super.onPause()
@@ -286,6 +293,10 @@ class MainActivity : Activity() {
         fun installUpdate() {
             main.post { Updater.installApk(this@MainActivity) { msg -> main.post { toast(msg) } } }
         }
+
+        /** Buscar novedades ahora mismo (diseño y app). */
+        @JavascriptInterface
+        fun checkNow() { main.post { checkUpdates(true) } }
 
         @JavascriptInterface
         fun appVersion(): String = Updater.nativeVersion(this@MainActivity).toString()
