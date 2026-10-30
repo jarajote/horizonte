@@ -143,7 +143,7 @@
     if (!CFG.repo || (!force && Date.now() - iconsChecked < 2 * 60 * 1000)) return;
     iconsChecked = Date.now();
     try {
-      const r = await fetch(`https://api.github.com/repos/${CFG.repo}/contents/?ref=main`);
+      const r = await fetch(`https://api.github.com/repos/${CFG.repo}/contents?ref=main`);
       if (!r.ok) return;
       const list = await r.json(), next = {};
       let changed = false;
