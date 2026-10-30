@@ -1,9 +1,10 @@
 {
-  "version": 5,
+  "version": 6,
   "minNative": 1,
   "files": [
     "index.html",
     "scene.js",
+    "characters.js",
     "ui.js",
     "fonts/fraunces-latin-300-normal.woff2",
     "fonts/fraunces-latin-400-normal.woff2",
