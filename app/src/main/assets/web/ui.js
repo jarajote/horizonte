@@ -13,7 +13,7 @@
       { pkg: 'com.android.tv.settings', label: 'Ajustes' }, { pkg: 'com.google.android.youtube.tv', label: 'YouTube' }, { pkg: 'com.netflix.ninja', label: 'Netflix' },
       { pkg: 'com.spotify.tv.android', label: 'Spotify' }, { pkg: 'com.tcl.browser', label: 'Navegador' }, { pkg: 'com.tcl.mediaplayer', label: 'Reproductor' }
     ]),
-    icon: () => '',
+    icon: p => qs.get('mockicons') ? mockIcon(p) : '',
     customIcon: () => '',
     launch: p => console.log('launch', p),
     hdmiInputs: () => JSON.stringify([{ id: 'hdmi1', label: 'HDMI 1' }, { id: 'hdmi2', label: 'HDMI 2' }, { id: 'hdmi3', label: 'HDMI 3' }]),
@@ -24,6 +24,12 @@
     openHomeSetup: () => console.log('home setup')
   };
   const homeOk = () => typeof NATIVE.homeOk !== 'function' || safe(() => NATIVE.homeOk(), true);
+  function mockIcon(p) {
+    const c = document.createElement('canvas'); c.width = c.height = 192; const x = c.getContext('2d');
+    const col = { 'org.xbmc.kodi': '#2E6FB5', 'com.google.android.youtube.tv': '#F4F1EC', 'com.fctv33.app': '#1E2E4A', 'com.spotify.tv.android': '#1C1C1C' }[p] || '#888';
+    x.fillStyle = col; x.fillRect(0, 0, 192, 192); x.fillStyle = 'rgba(255,255,255,.85)'; x.beginPath(); x.arc(96, 96, 40, 0, 7); x.fill();
+    return c.toDataURL();
+  }
   const safe = (fn, fb) => { try { return fn(); } catch (e) { console.error(e); return fb; } };
 
   // ---------- Escalado a 1920x1080 ----------
@@ -105,14 +111,16 @@
     { id: 'spotify', title: 'Spotify', find: () => APPS.find(a => a.pkg === 'com.spotify.tv.android') || APPS.find(a => /spotify/i.test(a.label + a.pkg)) },
     { id: 'ps5', title: 'PS5', find: () => { const h = HDMI.find(i => /ps5|playstation|ps 5|sony/i.test(i.label + ' ' + (i.cec || ''))); return h ? { hdmi: h.id, label: h.label } : null; } }
   ];
+  const G = inner => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">${inner}</svg>`;
   const GLYPH = {
-    kodi: '<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="3" y="5" width="18" height="13" rx="2"/><path d="M10 9l5 2.5-5 2.5z" fill="currentColor"/><path d="M8 21h8"/></svg>',
-    youtube: '<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><rect x="2.5" y="5.5" width="19" height="13" rx="4"/><path d="M10 9.5l5 2.5-5 2.5z" fill="currentColor"/></svg>',
-    futbol: '<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7l4 3-1.5 4.5h-5L8 10z"/><path d="M12 3v4M16 10l4.5-1.5M14.5 14.5l2.5 4M9.5 14.5L7 18.5M8 10L3.5 8.5"/></svg>',
-    ps5: '<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6.5 7.5h11a4 4 0 0 1 3.9 4.9l-1 4.3a2.3 2.3 0 0 1-4 .9L14.6 15H9.4l-1.8 2.6a2.3 2.3 0 0 1-4-.9l-1-4.3a4 4 0 0 1 3.9-4.9z"/><path d="M7.5 10v3M6 11.5h3"/><circle cx="16" cy="10.5" r=".6" fill="currentColor"/><circle cx="17.5" cy="12.5" r=".6" fill="currentColor"/></svg>',
-    spotify: '<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V6l10-2v12"/><circle cx="6.5" cy="18" r="2.5"/><circle cx="16.5" cy="16" r="2.5"/></svg>',
-    hdmi: '<svg class="glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"><path d="M3 8h18v5l-2 3H5l-2-3z"/><path d="M7 11h10"/></svg>'
+    kodi: G('<rect x="3" y="5.5" width="18" height="12" rx="2.2"/><path d="M10.2 9.3l4.3 2.4-4.3 2.4z" fill="currentColor"/><path d="M8.5 20.5h7"/>'),
+    youtube: G('<rect x="2.8" y="5.8" width="18.4" height="12.4" rx="4"/><path d="M10 9.6l4.6 2.4L10 14.4z" fill="currentColor" stroke="none"/>'),
+    futbol: G('<circle cx="12" cy="12" r="8.5"/><path d="M12 7.6l3.6 2.6-1.4 4.2H9.8L8.4 10.2z" fill="currentColor"/><path d="M12 3.5v4.1M15.6 10.2l4.2-1.3M14.2 14.4l2.4 3.7M9.8 14.4l-2.4 3.7M8.4 10.2L4.2 8.9"/>'),
+    spotify: G('<path d="M9 17.5V6.3l9.5-2v11.2"/><circle cx="6.6" cy="17.6" r="2.4" fill="currentColor"/><circle cx="16.1" cy="15.6" r="2.4" fill="currentColor"/>'),
+    ps5: G('<path d="M7.2 8h9.6a3.9 3.9 0 0 1 3.8 4.6l-.8 3.9a2.1 2.1 0 0 1-3.7.9L14.3 15H9.7l-1.8 2.4a2.1 2.1 0 0 1-3.7-.9l-.8-3.9A3.9 3.9 0 0 1 7.2 8z"/><path d="M8 10.4v3M6.5 11.9h3"/><circle cx="15.9" cy="10.9" r=".9" fill="currentColor" stroke="none"/><circle cx="17.6" cy="12.7" r=".9" fill="currentColor" stroke="none"/>'),
+    hdmi: G('<path d="M3.5 8.5h17v4.6l-2 3.4h-13l-2-3.4z"/><path d="M7 11.6h10"/>')
   };
+  const gico = id => `<div class="gico gico-${GLYPH[id] ? id : 'hdmi'}">${GLYPH[id] || GLYPH.hdmi}</div>`;
 
   const store = { get(k, d) { try { const v = localStorage.getItem('hz.' + k); return v ? JSON.parse(v) : d; } catch (e) { return d; } }, set(k, v) { try { localStorage.setItem('hz.' + k, JSON.stringify(v)); } catch (e) { } } };
   let SLOTS = [];
@@ -155,17 +163,19 @@
 
   function tileInner(s) {
     const custom = safe(() => NATIVE.customIcon(s.id), '');
-    if (custom) return `<img src="${custom}" class="contain" alt="">`;
+    if (custom) return `<img src="${custom}" alt="">`;
     if (ICONS[s.id]) return `<img src="${ICONS[s.id].data}" alt="">`;
-    if (s.pkg) { const ic = iconFor(s.pkg); if (ic) return `<img src="${ic}" class="contain" alt="">`; }
-    return GLYPH[s.id] || GLYPH.hdmi;
+    // El hueco de YouTube muestra el icono oficial de la app de YouTube de la tele aunque abra TizenTube
+    if (s.id === 'youtube') { const yt = APPS.find(a => a.pkg === 'com.google.android.youtube.tv') || APPS.find(a => /^youtube$/i.test(a.label)); if (yt) { const ic = iconFor(yt.pkg); if (ic) return `<img src="${ic}" alt="">`; } }
+    if (s.pkg) { const ic = iconFor(s.pkg); if (ic) return `<img src="${ic}" alt="">`; }
+    return gico(s.id);
   }
   function renderDock() {
     const dock = $('dock'); dock.innerHTML = '';
     SLOTS.forEach((s, i) => {
       const el = document.createElement('div'); el.className = 'tile'; el.dataset.i = i;
       el.innerHTML = tileInner(s) + '<i class="live"></i>';
-      if (ICONS[s.id]) el.classList.add('custom');
+      if (ICONS[s.id] || safe(() => NATIVE.customIcon(s.id), '')) el.classList.add('custom');
       if (s.id === 'ps5' && s.hdmi && HDMI.find(h => h.id === s.hdmi && h.cec)) el.classList.add('on');
       dock.appendChild(el);
     });
@@ -216,7 +226,7 @@
       const g = document.createElement('div'); g.className = 'grid'; inner.appendChild(g);
       list.forEach(it => {
         const el = document.createElement('div'); el.className = 'app';
-        const ic = it.hdmi ? GLYPH.hdmi.replace('class="glyph"', '') : (iconFor(it.pkg) ? `<img src="${iconFor(it.pkg)}" alt="">` : (it.label || '?').slice(0, 1).toUpperCase());
+        const ic = it.hdmi ? GLYPH.hdmi : (iconFor(it.pkg) ? `<img src="${iconFor(it.pkg)}" alt="">` : (it.label || '?').slice(0, 1).toUpperCase());
         el.innerHTML = `<div class="ic">${ic}</div><span>${it.label}</span>`;
         el.dataset.k = drawerItems.length; drawerItems.push({ it, el }); g.appendChild(el);
       });
@@ -236,9 +246,12 @@
   let idleT;
   function paintFocus() {
     document.querySelectorAll('.focus').forEach(e => e.classList.remove('focus'));
+    if (focus.area !== 'dock') document.querySelectorAll('.tile.near').forEach(e => e.classList.remove('near'));
     const label = $('label'), hint = $('hint');
     if (focus.area === 'dock') {
-      const el = $('dock').children[focus.i]; if (el) el.classList.add('focus');
+      const kids = $('dock').children, el = kids[focus.i];
+      if (el) el.classList.add('focus');
+      [...kids].forEach((k, j) => k.classList.toggle('near', Math.abs(j - focus.i) === 1));
       label.textContent = SLOTS[focus.i] ? SLOTS[focus.i].title : ''; label.classList.add('show');
       if (el) { const wrap = el.offsetParent; const off = el.offsetLeft + el.offsetWidth / 2 - wrap.offsetWidth / 2; label.style.transform = `translateX(${off}px)`; }
       hint.classList.add('show'); clearTimeout(idleT); idleT = setTimeout(() => { hint.classList.remove('show'); label.classList.remove('show'); }, 6000);
