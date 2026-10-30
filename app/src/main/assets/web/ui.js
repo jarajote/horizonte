@@ -134,6 +134,8 @@
       if (!f) return { id: d.id, title: d.title };
       return f.hdmi ? { id: d.id, title: d.title, hdmi: f.hdmi, label: f.label } : { id: d.id, title: d.title, pkg: f.pkg, label: f.label };
     });
+    const order = store.get('order', []), pos = id => { const k = order.indexOf(id); return k < 0 ? 100 + SLOT_DEF.findIndex(d => d.id === id) : k; };
+    SLOTS.sort((a, b) => pos(a.id) - pos(b.id));
   }
 
   // Iconos propios subidos al repositorio de GitHub como icono-<hueco>.png (icono-ps5.png, icono-kodi.png…)
@@ -184,12 +186,19 @@
 
   // ---------- Uso por franjas horarias: el foco empieza en lo que más usáis a esa hora ----------
   const bucket = () => Math.floor(new Date(HZScene.now()).getHours() / 3);
-  function remember(i) { const u = store.get('usage', {}); const b = bucket(); u[b] = u[b] || []; while (u[b].length < SLOTS.length) u[b].push(0); u[b][i]++; store.set('usage', u); }
+  function remember(i) {
+    const u = store.get('usage', {}), b = bucket(), id = SLOTS[i].id;
+    if (!u[b] || Array.isArray(u[b])) u[b] = {};
+    u[b][id] = (u[b][id] || 0) + 1; store.set('usage', u);
+  }
   function bestSlot() {
     const u = store.get('usage', {})[bucket()];
-    if (u && Math.max(...u) >= 3) return u.indexOf(Math.max(...u));
+    if (u && !Array.isArray(u)) {
+      const best = Object.entries(u).sort((a, b) => b[1] - a[1])[0];
+      if (best && best[1] >= 3) { const i = SLOTS.findIndex(s => s.id === best[0]); if (i >= 0) return i; }
+    }
     const h = new Date(HZScene.now()).getHours();
-    return h >= 20 || h < 3 ? 0 : 1;
+    return Math.max(0, SLOTS.findIndex(s => s.id === (h >= 20 || h < 3 ? 'kodi' : 'youtube')));
   }
 
   // ---------- Acciones ----------
@@ -218,7 +227,7 @@
   function openDrawer(m, slot) {
     drawerMode = m; pickSlot = slot == null ? -1 : slot;
     $('drawerTitle').textContent = m === 'pick' ? 'Elige qué va en «' + SLOTS[slot].title + '»' : 'Tus apps';
-    $('drawerSub').textContent = m === 'pick' ? 'Puede ser una app o una entrada HDMI · atrás para cancelar' : 'Mantén OK sobre un icono del dock para cambiarlo · atrás para volver';
+    $('drawerSub').textContent = m === 'pick' ? 'Puede ser una app o una entrada HDMI · atrás para cancelar' : 'Mantén OK sobre un icono del dock para moverlo o cambiarlo · atrás para volver';
     const inner = $('drawerInner'); inner.innerHTML = ''; drawerItems = [];
     const section = (title, list) => {
       if (!list.length) return;
@@ -251,11 +260,19 @@
     if (focus.area === 'dock') {
       const kids = $('dock').children, el = kids[focus.i];
       if (el) el.classList.add('focus');
-      [...kids].forEach((k, j) => k.classList.toggle('near', Math.abs(j - focus.i) === 1));
-      label.textContent = SLOTS[focus.i] ? SLOTS[focus.i].title : ''; label.classList.add('show');
-      if (el) { const wrap = el.offsetParent; const off = el.offsetLeft + el.offsetWidth / 2 - wrap.offsetWidth / 2; label.style.transform = `translateX(${off}px)`; }
-      hint.classList.add('show'); clearTimeout(idleT); idleT = setTimeout(() => { hint.classList.remove('show'); label.classList.remove('show'); }, 6000);
-    } else { label.classList.remove('show'); hint.classList.remove('show'); }
+      [...kids].forEach((k, j) => { k.classList.toggle('near', !sub && Math.abs(j - focus.i) === 1); k.classList.toggle('moving', !!sub && sub.type === 'move' && j === focus.i); });
+      const menu = $('menu'), inMenu = !!sub && sub.type === 'menu', moving = !!sub && sub.type === 'move';
+      label.textContent = moving ? '◀ ▶ para moverlo · OK para dejarlo' : (SLOTS[focus.i] ? SLOTS[focus.i].title : '');
+      label.classList.toggle('show', !inMenu);
+      menu.classList.toggle('show', inMenu);
+      [...menu.children].forEach((m, j) => m.classList.toggle('sel', inMenu && j === sub.sel));
+      if (el) {
+        const wrap = el.offsetParent, off = el.offsetLeft + el.offsetWidth / 2 - wrap.offsetWidth / 2;
+        label.style.transform = `translateX(${off}px)`; menu.style.transform = `translateX(${off}px)`;
+      }
+      hint.classList.toggle('show', !sub); clearTimeout(idleT);
+      if (!sub) idleT = setTimeout(() => { hint.classList.remove('show'); label.classList.remove('show'); }, 6000);
+    } else { label.classList.remove('show'); hint.classList.remove('show'); $('menu').classList.remove('show'); }
     if (focus.area === 'corner') { const c = cornerItems(); focus.i = Math.min(focus.i, c.length - 1); $(c[focus.i]).classList.add('focus'); }
     if (focus.area === 'drawer' && drawerItems[focus.i]) {
       const el = drawerItems[focus.i].el; el.classList.add('focus');
@@ -279,8 +296,22 @@
     paintFocus();
   }
 
+  // Menú del icono (mantener OK): mover o cambiar app
+  let sub = null;
+  function openMenu() { sub = { type: 'menu', sel: 0 }; paintFocus(); }
+  function closeSub() { if (sub && sub.type === 'move') { store.set('order', SLOTS.map(s => s.id)); toast('Orden guardado'); } sub = null; paintFocus(); }
+  function moveTile(dx) {
+    const j = focus.i + dx; if (j < 0 || j >= SLOTS.length) return;
+    [SLOTS[focus.i], SLOTS[j]] = [SLOTS[j], SLOTS[focus.i]];
+    const dock = $('dock'), a = dock.children[focus.i], b = dock.children[j];
+    if (dx > 0) dock.insertBefore(b, a); else dock.insertBefore(a, b);
+    focus.i = j; paintFocus();
+  }
+
   let pressT = null, longFired = false, pressing = false;
   function onOk() {
+    if (sub && sub.type === 'menu') { const s = focus.i, act = sub.sel; sub = null; if (act === 0) { sub = { type: 'move' }; paintFocus(); } else { paintFocus(); openDrawer('pick', s); } return; }
+    if (sub && sub.type === 'move') { closeSub(); return; }
     if (focus.area === 'dock') openSlot(focus.i);
     else if (focus.area === 'corner') {
       if (cornerItems()[focus.i] === 'btnUpdate') { toast('Descargando la versión nueva…', 6000); NATIVE.installUpdate(); }
@@ -288,12 +319,11 @@
     }
     else if (focus.area === 'drawer') activateDrawer(focus.i);
   }
-  function onLong() { if (focus.area === 'dock') openDrawer('pick', focus.i); }
+  function onLong() { if (focus.area === 'dock' && !sub) openMenu(); }
 
   const OK_KEYS = ['Enter', 'NumpadEnter', ' '];
   addEventListener('keydown', e => {
     const k = e.key;
-    HZScene.hold(500);
     if (OK_KEYS.includes(k) || e.keyCode === 23 || e.keyCode === 13) {
       e.preventDefault();
       if (!pressing) { pressing = true; longFired = false; pressT = setTimeout(() => { longFired = true; onLong(); }, 650); }
@@ -305,6 +335,8 @@
     if (!dx && !dy) return;
     e.preventDefault();
     if (focus.area === 'drawer') return moveDrawer(dx, dy);
+    if (sub && sub.type === 'menu') { if (dx) { sub.sel = Math.max(0, Math.min(1, sub.sel + dx)); paintFocus(); } else if (dy > 0) closeSub(); return; }
+    if (sub && sub.type === 'move') { if (dx) moveTile(dx); return; }
     if (focus.area === 'dock') {
       if (dx) focus.i = Math.max(0, Math.min(SLOTS.length - 1, focus.i + dx));
       if (dy > 0) return openDrawer('apps');
@@ -326,7 +358,7 @@
   });
 
   // Llamadas desde Android
-  window.hzBack = () => { if (mode === 'drawer') { closeDrawer(); return true; } focus = { area: 'dock', i: bestSlot() }; paintFocus(); return false; };
+  window.hzBack = () => { if (sub) { closeSub(); return true; } if (mode === 'drawer') { closeDrawer(); return true; } focus = { area: 'dock', i: bestSlot() }; paintFocus(); return false; };
   window.hzResume = () => {
     syncIcons(false);
     loadApps(); resolveSlots(); renderDock();

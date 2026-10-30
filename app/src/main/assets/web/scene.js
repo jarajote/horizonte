@@ -651,7 +651,7 @@
   let lastFrame = 0, lastSim = 0, holdUntil = 0;
   function frame(ts) {
     requestAnimationFrame(frame);
-    if (document.hidden || ts - lastFrame < 32 || ts < holdUntil) return;
+    if (document.hidden || ts - lastFrame < 40) return;
     lastFrame = ts;
     const ms = now(), t = ms / 1000;
     const dtSim = lastSim ? ms - lastSim : 0; lastSim = ms;
