@@ -26,7 +26,7 @@ El proyecto trae un proceso que hace que GitHub compile la app solo y la publiqu
 4. A los ~5 minutos, en la pestaña **Releases** del repositorio aparece `horizonte.apk`. El enlace es siempre el mismo:
 
 ```
-https://github.com/TU_USUARIO/horizonte/releases/latest/download/horizonte.apk
+https://is.gd/CeIgq1   (= github.com/jarajote/horizonte/releases/latest/download/horizonte.apk)
 ```
 
 ### 2. Permitir que Downloader instale apps
@@ -52,7 +52,12 @@ Este servicio no lee nada de lo que ves ni de lo que escribes. Solo detecta cuá
 
 ### Actualizar
 
-Cuando haya cambios, GitHub publica una versión nueva con el mismo enlace. Repite el paso 3 y se instala encima, sin perder nada.
+No tienes que hacer nada:
+
+- **Diseño** (escena, dock, reloj, tiempo): Horizonte lo descarga solo de GitHub y lo aplica la próxima vez que pulses Home.
+- **App:** cuando hay una versión nueva, aparece un botón ⬇ junto a ⚙ y un aviso. Sube hasta él y pulsa OK: se descarga y sale el instalador. La primera vez, Android te pedirá permitir que Horizonte instale apps.
+
+Si algo fallara, el enlace de Downloader (`https://is.gd/CeIgq1`) siempre tiene la última versión.
 
 ---
 

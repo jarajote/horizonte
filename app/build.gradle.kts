@@ -11,8 +11,10 @@ android {
         applicationId = "com.alejandro.horizonte"
         minSdk = 26
         targetSdk = 34
-        versionCode = 1
-        versionName = "1.0"
+        // En GitHub cada compilación tiene un número mayor: así la home sabe si hay versión nueva
+        val run = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+        versionCode = run
+        versionName = "1.$run"
     }
 
     // Clave fija dentro del proyecto: así cada versión nueva se instala encima de la anterior

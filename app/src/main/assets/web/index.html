@@ -34,6 +34,7 @@ body { font-family: 'Manrope', sans-serif; color: var(--ui); -webkit-font-smooth
 .corner { position: absolute; right: 104px; top: 92px; display: flex; gap: 16px; }
 .round { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--d40); color: #fbf4ea; transition: transform .25s, background .25s, box-shadow .25s; }
 .round svg { width: 28px; height: 28px; }
+.round.new { background: #E8784E; }
 .round.alert::after { content: ''; position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background: #E8784E; box-shadow: 0 0 0 3px rgba(255,250,242,.9); }
 .round { position: relative; }
 .round.focus { transform: scale(1.12); background: var(--d70); box-shadow: 0 0 0 3px #fbf4ea; }
@@ -88,7 +89,9 @@ body { font-family: 'Manrope', sans-serif; color: var(--ui); -webkit-font-smooth
       <div class="meta"><div><b id="dow">viernes</b></div><div id="date">30 de octubre</div><div id="wx"></div></div>
     </div>
   </div>
-  <div class="corner"><div class="round" id="btnSettings" aria-label="Ajustes">
+  <div class="corner"><div class="round" id="btnUpdate" aria-label="Actualizar" style="display:none">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10.5l5 5 5-5M5 20h14"/></svg>
+  </div><div class="round" id="btnSettings" aria-label="Ajustes">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 4.3a1.7 1.7 0 0 1 3.4 0 1.7 1.7 0 0 0 2.6 1 1.7 1.7 0 0 1 2.4 2.4 1.7 1.7 0 0 0 1 2.6 1.7 1.7 0 0 1 0 3.4 1.7 1.7 0 0 0-1 2.6 1.7 1.7 0 0 1-2.4 2.4 1.7 1.7 0 0 0-2.6 1 1.7 1.7 0 0 1-3.4 0 1.7 1.7 0 0 0-2.6-1 1.7 1.7 0 0 1-2.4-2.4 1.7 1.7 0 0 0-1-2.6 1.7 1.7 0 0 1 0-3.4 1.7 1.7 0 0 0 1-2.6 1.7 1.7 0 0 1 2.4-2.4 1.7 1.7 0 0 0 2.6-1z"/><circle cx="12" cy="12" r="3"/></svg>
   </div></div>
   <div class="dockwrap">

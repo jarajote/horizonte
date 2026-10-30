@@ -20,6 +20,7 @@
     openInput: id => console.log('input', id),
     openSettings: () => console.log('settings'),
     homeOk: () => qs.get('homeok') !== '0',
+    installUpdate: () => console.log('install update'),
     openHomeSetup: () => console.log('home setup')
   };
   const homeOk = () => typeof NATIVE.homeOk !== 'function' || safe(() => NATIVE.homeOk(), true);
@@ -215,7 +216,7 @@
       if (el) { const wrap = el.offsetParent; const off = el.offsetLeft + el.offsetWidth / 2 - wrap.offsetWidth / 2; label.style.transform = `translateX(${off}px)`; }
       hint.classList.add('show'); clearTimeout(idleT); idleT = setTimeout(() => { hint.classList.remove('show'); label.classList.remove('show'); }, 6000);
     } else { label.classList.remove('show'); hint.classList.remove('show'); }
-    if (focus.area === 'corner') $('btnSettings').classList.add('focus');
+    if (focus.area === 'corner') { const c = cornerItems(); focus.i = Math.min(focus.i, c.length - 1); $(c[focus.i]).classList.add('focus'); }
     if (focus.area === 'drawer' && drawerItems[focus.i]) {
       const el = drawerItems[focus.i].el; el.classList.add('focus');
       const inner = $('drawerInner'), top = el.offsetTop - inner.offsetTop;
@@ -241,7 +242,10 @@
   let pressT = null, longFired = false, pressing = false;
   function onOk() {
     if (focus.area === 'dock') openSlot(focus.i);
-    else if (focus.area === 'corner') { if (homeOk()) NATIVE.openSettings(); else NATIVE.openHomeSetup(); }
+    else if (focus.area === 'corner') {
+      if (cornerItems()[focus.i] === 'btnUpdate') { toast('Descargando la versión nueva…', 6000); NATIVE.installUpdate(); }
+      else if (homeOk()) NATIVE.openSettings(); else NATIVE.openHomeSetup();
+    }
     else if (focus.area === 'drawer') activateDrawer(focus.i);
   }
   function onLong() { if (focus.area === 'dock') openDrawer('pick', focus.i); }
@@ -264,7 +268,12 @@
       if (dx) focus.i = Math.max(0, Math.min(SLOTS.length - 1, focus.i + dx));
       if (dy > 0) return openDrawer('apps');
       if (dy < 0) focus = { area: 'corner', i: 0 };
-    } else if (focus.area === 'corner') { if (dy > 0 || dx < 0) focus = { area: 'dock', i: SLOTS.length - 1 }; }
+    } else if (focus.area === 'corner') {
+      const n = cornerItems().length;
+      if (dy > 0) focus = { area: 'dock', i: SLOTS.length - 1 };
+      else if (dx < 0) { if (focus.i > 0) focus.i--; else focus = { area: 'dock', i: SLOTS.length - 1 }; }
+      else if (dx > 0 && focus.i < n - 1) focus.i++;
+    }
     paintFocus();
   });
   addEventListener('keyup', e => {
@@ -284,10 +293,19 @@
     homeReminder();
   };
   window.hzMenu = () => onLong();
+  // Android avisa cuando hay un APK nuevo en GitHub
+  const cornerItems = () => updateReady ? ['btnUpdate', 'btnSettings'] : ['btnSettings'];
+  let updateReady = false;
+  window.hzUpdateAvailable = (tag) => {
+    if (updateReady) return;
+    updateReady = true; const b = $('btnUpdate'); b.style.display = ''; b.classList.add('new');
+    toast('Hay una versión nueva de Horizonte: sube a ⬇ y pulsa OK', 9000);
+  };
   window.hzInputsChanged = () => { HDMI = safe(() => JSON.parse(NATIVE.hdmiInputs()), HDMI); resolveSlots(); renderDock(); };
 
   loadApps(); resolveSlots(); renderDock();
   focus = { area: 'dock', i: bestSlot() }; paintFocus();
   setTimeout(homeReminder, 1500);
+  if (qs.get('update')) setTimeout(() => window.hzUpdateAvailable('v9'), 1200);
   if (qs.get('drawer')) openDrawer(qs.get('drawer') === 'pick' ? 'pick' : 'apps', 3);
 })();

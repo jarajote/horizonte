@@ -43,6 +43,7 @@ class MainActivity : Activity() {
     private lateinit var web: WebView
     private val main = Handler(Looper.getMainLooper())
     private var tvInputs: TvInputManager? = null
+    @Volatile private var webUpdated = false
 
     private val packagesChanged = object : BroadcastReceiver() {
         override fun onReceive(c: Context?, i: Intent?) { js("window.hzResume && hzResume()") }
@@ -73,7 +74,7 @@ class MainActivity : Activity() {
             addJavascriptInterface(Bridge(), "Android")
         }
         setContentView(web)
-        web.loadUrl("file:///android_asset/web/index.html")
+        web.loadUrl(Updater.startUrl(this))
         web.requestFocus()
 
         tvInputs = getSystemService(Context.TV_INPUT_SERVICE) as? TvInputManager
@@ -110,7 +111,22 @@ class MainActivity : Activity() {
         super.onResume()
         web.onResume()
         web.resumeTimers()
-        js("window.hzResume && hzResume()")
+        if (!reloadIfUpdated()) js("window.hzResume && hzResume()")
+        checkUpdates(false)
+    }
+
+    /** Si se ha descargado un diseño nuevo, lo cargamos ahora (al volver a la home). */
+    private fun reloadIfUpdated(): Boolean {
+        if (!webUpdated) return false
+        webUpdated = false
+        web.loadUrl(Updater.startUrl(this))
+        return true
+    }
+
+    private fun checkUpdates(force: Boolean) {
+        Updater.check(this, force,
+            onWebReady = { webUpdated = true },
+            onApk = { tag -> js("window.hzUpdateAvailable && hzUpdateAvailable('v$tag')") })
     }
 
     override fun onPause() {
@@ -121,8 +137,8 @@ class MainActivity : Activity() {
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        // Pulsar Home estando ya en el launcher: volvemos al dock
-        js("window.hzBack && hzBack()")
+        // Pulsar Home estando ya en el launcher: volvemos al dock (o cargamos el diseño nuevo)
+        if (!reloadIfUpdated()) js("window.hzBack && hzBack()")
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
@@ -265,6 +281,14 @@ class MainActivity : Activity() {
                 if (!ok) toast("Tu tele no deja abrir esa entrada desde aquí")
             }
         }
+
+        @JavascriptInterface
+        fun installUpdate() {
+            main.post { Updater.installApk(this@MainActivity) { msg -> main.post { toast(msg) } } }
+        }
+
+        @JavascriptInterface
+        fun appVersion(): String = Updater.nativeVersion(this@MainActivity).toString()
 
         /** true si el botón Home ya abre Horizonte (por ADB o por el servicio de accesibilidad). */
         @JavascriptInterface

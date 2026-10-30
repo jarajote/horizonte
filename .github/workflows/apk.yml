@@ -3,6 +3,10 @@ name: Compilar APK
 on:
   push:
     branches: [main]
+    # Los cambios de diseño (assets/web) llegan solos a la tele; no hace falta un APK nuevo
+    paths-ignore:
+      - 'app/src/main/assets/web/**'
+      - '**.md'
   workflow_dispatch:
 
 permissions:
