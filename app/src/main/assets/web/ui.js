@@ -266,7 +266,7 @@
       label.classList.toggle('show', !inMenu);
       menu.classList.toggle('show', inMenu);
       [...menu.children].forEach((m, j) => m.classList.toggle('sel', inMenu && j === sub.sel));
-      if (el) {
+      if (el && el.offsetParent) {
         const wrap = el.offsetParent, off = el.offsetLeft + el.offsetWidth / 2 - wrap.offsetWidth / 2;
         label.style.transform = `translateX(${off}px)`; menu.style.transform = `translateX(${off}px)`;
       }
