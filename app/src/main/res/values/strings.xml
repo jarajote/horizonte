@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Horizonte</string>
+    <string name="a11y_label">Horizonte: botón Home</string>
+    <string name="a11y_desc">Hace que el botón Home del mando abra Horizonte en lugar de la pantalla de inicio de la tele. No lee nada de lo que ves ni de lo que escribes: solo detecta cuándo aparece la pantalla de inicio original.</string>
+</resources>

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horizonte</title>
+<style>
+@font-face { font-family: 'Fraunces'; font-weight: 300; src: url('fonts/fraunces-latin-300-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Fraunces'; font-weight: 400; src: url('fonts/fraunces-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-weight: 400; src: url('fonts/manrope-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-weight: 500; src: url('fonts/manrope-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Manrope'; font-weight: 600; src: url('fonts/manrope-latin-600-normal.woff2') format('woff2'); }
+
+:root { --cloudbg: rgba(255,250,242,.9); --dd: rgba(30,22,20,.97); --d40: rgba(58,42,36,.4); --d70: rgba(58,42,36,.7); --d80: rgba(58,42,36,.8); --d90: rgba(58,42,36,.9); --d95: rgba(40,30,26,.96); --ui: #2D2621; --ui-soft: rgba(45,38,33,.72); --dock: #3a2a24; --accent: #f3d6a8; --shadow: rgba(255,248,236,.35); }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #141a2e; cursor: none; }
+body { font-family: 'Manrope', sans-serif; color: var(--ui); -webkit-font-smoothing: antialiased; }
+#scene { position: fixed; inset: 0; width: 100vw; height: 100vh; object-fit: cover; display: block; }
+
+/* La interfaz se dibuja sobre un lienzo de 1920x1080 escalado */
+#ui { position: fixed; left: 0; top: 0; width: 1920px; height: 1080px; transform-origin: 0 0; pointer-events: none; }
+#ui > * { pointer-events: auto; }
+
+.clock { position: absolute; left: 112px; top: 84px; transition: color 2s; text-shadow: 0 1px 18px var(--shadow); }
+.greet { font-size: 20px; font-weight: 600; letter-spacing: .24em; text-transform: uppercase; color: var(--ui-soft); }
+.timerow { display: flex; align-items: center; gap: 30px; margin-top: 6px; }
+.time { font-family: 'Fraunces', serif; font-weight: 300; font-size: 124px; line-height: 1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.time .colon { opacity: .55; margin: 0 .02em; }
+.meta { border-left: 1.5px solid var(--ui-soft); padding-left: 28px; font-size: 26px; line-height: 1.45; color: var(--ui-soft); }
+.meta b { font-weight: 600; color: var(--ui); }
+#wx { display: flex; align-items: center; gap: 10px; }
+.wxi { width: 38px; height: 38px; margin: -4px 0 -4px -2px; color: var(--ui); --cloudfill: var(--cloudbg); }
+
+.corner { position: absolute; right: 104px; top: 92px; display: flex; gap: 16px; }
+.round { width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; background: var(--d40); color: #fbf4ea; transition: transform .25s, background .25s, box-shadow .25s; }
+.round svg { width: 28px; height: 28px; }
+.round.alert::after { content: ''; position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background: #E8784E; box-shadow: 0 0 0 3px rgba(255,250,242,.9); }
+.round { position: relative; }
+.round.focus { transform: scale(1.12); background: var(--d70); box-shadow: 0 0 0 3px #fbf4ea; }
+
+.dockwrap { position: absolute; left: 0; right: 0; bottom: 30px; display: flex; flex-direction: column; align-items: center; }
+.label { height: 46px; margin-bottom: 18px; transition: opacity .25s, transform .3s cubic-bezier(.2,.9,.3,1.1); padding: 0 22px; border-radius: 23px; display: flex; align-items: center; font-size: 22px; font-weight: 600; letter-spacing: .02em; color: #fbf4ea; background: var(--d80); opacity: 0; transform: translateY(6px); transition: opacity .25s, transform .25s; }
+.label.show { opacity: 1; transform: none; }
+.dock { display: flex; gap: 24px; padding: 16px 22px; border-radius: 40px; background: var(--d40); transition: background 2s; }
+.tile { position: relative; width: 100px; height: 100px; border-radius: 26px; background: #f6efe4; display: grid; place-items: center; overflow: visible; transition: transform .28s cubic-bezier(.2,.9,.3,1.25), box-shadow .28s; }
+.tile img { width: 100%; height: 100%; border-radius: 26px; object-fit: cover; }
+.tile img.contain { width: 78%; height: 78%; object-fit: contain; border-radius: 16px; }
+.tile .glyph { width: 56%; height: 56%; color: #3a2a24; }
+.tile.focus { transform: translateY(-10px) scale(1.16); box-shadow: 0 0 0 4px #fbf4ea, 0 14px 30px rgba(20,12,8,.28); }
+.tile::after { content: ''; position: absolute; bottom: -20px; left: 50%; width: 7px; height: 7px; margin-left: -3.5px; border-radius: 50%; background: #fbf4ea; opacity: 0; transition: opacity .25s; }
+.tile.focus::after { opacity: 1; }
+.tile .live { position: absolute; top: -5px; right: -5px; width: 18px; height: 18px; border-radius: 50%; background: #7cc68c; box-shadow: 0 0 0 3px #f6efe4; display: none; }
+.tile.on .live { display: block; }
+.hint { margin-top: 20px; font-size: 18px; font-weight: 500; letter-spacing: .14em; text-transform: uppercase; color: #fbf4ea; opacity: 0; transition: opacity .6s; text-shadow: 0 1px 10px rgba(0,0,0,.35); }
+.hint.show { opacity: .75; }
+
+/* Cajón de apps */
+.drawer { position: absolute; inset: 0; background: var(--dd); opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s; color: #fbf4ea; padding: 96px 140px; }
+.drawer.open { opacity: 1; visibility: visible; }
+.drawer h2 { font-family: 'Fraunces', serif; font-weight: 300; font-size: 56px; letter-spacing: -.01em; }
+.drawer p.sub { margin-top: 8px; font-size: 22px; opacity: .7; }
+.section { margin-top: 40px; font-size: 18px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; opacity: .6; }
+.grid { margin-top: 18px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 26px 24px; }
+.app { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px 8px; border-radius: 22px; transition: background .2s, transform .2s; }
+.app .ic { width: 96px; height: 96px; border-radius: 24px; background: #f6efe4; display: grid; place-items: center; overflow: hidden; color: #3a2a24; font: 600 40px 'Manrope', sans-serif; }
+.app .ic img { width: 100%; height: 100%; object-fit: cover; }
+.app .ic svg { width: 54%; height: 54%; }
+.app span { font-size: 20px; text-align: center; line-height: 1.25; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app.focus { background: rgba(251,244,234,.14); transform: scale(1.06); }
+.app.focus .ic { box-shadow: 0 0 0 3px #fbf4ea; }
+.scroller { height: 720px; overflow: hidden; }
+.scroller-inner { transition: transform .3s; }
+
+.toast { position: absolute; left: 50%; top: 70px; transform: translate(-50%, -20px); padding: 16px 28px; border-radius: 30px; background: var(--d90); color: #fbf4ea; font-size: 22px; opacity: 0; transition: opacity .3s, transform .3s; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.hide-ui #ui { display: none; }
+.clock, .corner, .dockwrap { transition: opacity .3s; }
+#ui.drawer-open .clock, #ui.drawer-open .corner, #ui.drawer-open .dockwrap { opacity: 0; }
+</style>
+</head>
+<body>
+<canvas id="scene"></canvas>
+<div id="ui">
+  <div class="clock">
+    <div class="greet" id="greet">Buenas noches</div>
+    <div class="timerow">
+      <div class="time" id="time">00<span class="colon">:</span>00</div>
+      <div class="meta"><div><b id="dow">viernes</b></div><div id="date">30 de octubre</div><div id="wx"></div></div>
+    </div>
+  </div>
+  <div class="corner"><div class="round" id="btnSettings" aria-label="Ajustes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 4.3a1.7 1.7 0 0 1 3.4 0 1.7 1.7 0 0 0 2.6 1 1.7 1.7 0 0 1 2.4 2.4 1.7 1.7 0 0 0 1 2.6 1.7 1.7 0 0 1 0 3.4 1.7 1.7 0 0 0-1 2.6 1.7 1.7 0 0 1-2.4 2.4 1.7 1.7 0 0 0-2.6 1 1.7 1.7 0 0 1-3.4 0 1.7 1.7 0 0 0-2.6-1 1.7 1.7 0 0 1-2.4-2.4 1.7 1.7 0 0 0-1-2.6 1.7 1.7 0 0 1 0-3.4 1.7 1.7 0 0 0 1-2.6 1.7 1.7 0 0 1 2.4-2.4 1.7 1.7 0 0 0 2.6-1z"/><circle cx="12" cy="12" r="3"/></svg>
+  </div></div>
+  <div class="dockwrap">
+    <div class="label" id="label">Kodi</div>
+    <div class="dock" id="dock"></div>
+    <div class="hint" id="hint">▾ Todas las apps · mantén OK para cambiar</div>
+  </div>
+  <div class="drawer" id="drawer">
+    <h2 id="drawerTitle">Tus apps</h2>
+    <p class="sub" id="drawerSub">Pulsa atrás para volver</p>
+    <div class="scroller"><div class="scroller-inner" id="drawerInner"></div></div>
+  </div>
+  <div class="toast" id="toast"></div>
+</div>
+<script>
+  // Ajustes personales (puedes cambiarlos aquí)
+  window.HZ_CONFIG = {
+    names: 'Ale y Ana',
+    juanitaBirth: '2026-10-04T12:00:00',
+    lat: 36.0773, lon: -5.4258
+  };
+</script>
+<script src="scene.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
