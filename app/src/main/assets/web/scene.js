@@ -12,9 +12,9 @@
 
   // ---------- Tiempo (con modo prueba: ?t=2026-10-30T18:40&speed=600) ----------
   const qs = new URLSearchParams(location.search);
-  const REAL0 = Date.now();
-  const SIM0 = qs.get('t') ? new Date(qs.get('t')).getTime() : REAL0;
-  const SPEED = parseFloat(qs.get('speed') || '1');
+  let REAL0 = Date.now();
+  let SIM0 = qs.get('t') ? new Date(qs.get('t')).getTime() : REAL0;
+  let SPEED = parseFloat(qs.get('speed') || '1');
   const now = () => SIM0 + (Date.now() - REAL0) * SPEED;
 
   // ---------- Utilidades de color ----------
@@ -1012,7 +1012,7 @@
     const ms = now(), t = ms / 1000;
     const dtSim = lastSim ? ms - lastSim : 0; lastSim = ms;
     update(ms);
-    if (Math.abs(ms - S.lastBuild) > 45000 || Date.now() - S.lastBuildReal > 20000) { rebuild(); S.lastBuild = ms; S.lastBuildReal = Date.now(); }
+    if ((Math.abs(ms - S.lastBuild) > 45000 && Date.now() - S.lastBuildReal > 200) || Date.now() - S.lastBuildReal > 20000) { rebuild(); S.lastBuild = ms; S.lastBuildReal = Date.now(); }
     updateShips(ms, Math.min(dtSim, 60000));
     const x = ctx, p = S.pal;
     x.drawImage(L1, 0, 0, W, H);
@@ -1043,6 +1043,8 @@
 
   window.HZScene = {
     start,
+    // Fijar la hora simulada (pruebas): ms = instante, speed = multiplicador
+    setClock(ms, speed) { SIM0 = ms; REAL0 = Date.now(); SPEED = speed || 1; S.lastBuild = -1e15; },
     now,
     setWeather(w) { Object.assign(S.weather, w); S.lastBuild = -1e15; },
     // Pausa breve del dibujo para que la interfaz responda al mando sin tirones
