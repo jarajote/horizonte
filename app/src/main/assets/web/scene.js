@@ -840,8 +840,7 @@
   let walkCv, walkTmp, walkOff = 0, walkLastRt = 0, walkDir = 1, walkAmp = 1;
   function walkState(ms) {
     const st = sunTimes(ms), a = st.rise + 20 * 6e4, b = st.set - 15 * 6e4, back = st.set + 75 * 6e4;
-    if (ms >= a && ms <= b) return 1;          // de paseo hacia el Estrecho
-    if (ms > b && ms <= back) return -1;       // volviendo al faro
+    if (ms >= a && ms <= back) return 1;       // de paseo, siempre hacia la derecha
     return 0;                                  // de noche, parados mirando el mar
   }
   function drawFamilyAnime(x, ms, t) {
