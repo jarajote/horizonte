@@ -383,13 +383,6 @@
         x.fillStyle = rgba(br() < 0.5 ? mix(p.ground, p.sun, 0.35) : mix(p.ground, '#000000', 0.25), 0.07 + br() * 0.08);
         x.beginPath(); x.ellipse(bx, by, 6 + br() * 16, 1.5 + br() * 2.5, -0.08, 0, Math.PI * 2); x.fill();
       }
-      // loma de hierba donde estáis
-      const knoll = [[1080, 1080], [1150, 1032], [1260, 1004], [1420, 996], [1640, 994], [1820, 1000], [1940, 1004]];
-      const kg = x.createLinearGradient(0, 990, 0, H); kg.addColorStop(0, mix(p.bush, p.sun, 0.18)); kg.addColorStop(1, mix(p.bush, '#000000', 0.25));
-      smoothTop(x, knoll, kg, H);
-      x.strokeStyle = rgba(mix(p.bush, p.sun, 0.55), 0.8); x.lineWidth = 3; x.beginPath();
-      knoll.slice(1).forEach(([kx, ky], i) => i ? x.lineTo(kx, ky) : x.moveTo(kx, ky)); x.stroke();
-      for (let i = 0; i < 260; i++) { const bx = 1120 + br() * 820, by = 1004 + br() * 76; x.fillStyle = rgba(br() < 0.5 ? mix(p.bush, p.sun, 0.4) : mix(p.bush, '#000000', 0.35), 0.18); x.beginPath(); x.ellipse(bx, by, 4 + br() * 10, 1.5 + br() * 2, -0.2, 0, Math.PI * 2); x.fill(); }
       x.save(); x.globalCompositeOperation = 'source-atop';
       const lg = x.createLinearGradient(0, 740, 0, H); lg.addColorStop(0, rgba(p.sun, 0.18)); lg.addColorStop(0.35, rgba(p.sun, 0)); lg.addColorStop(1, rgba('#000000', 0.18));
       x.fillStyle = lg; x.fillRect(0, 740, W, H - 740); x.restore();
@@ -683,7 +676,7 @@
   }
 
   function drawPalm(x, t, p) {
-    if (ANIME) { x.save(); x.translate(-1100, -78); x.scale(1, 1); }
+    if (ANIME) { x.save(); x.translate(-1290, -82); x.scale(1, 1); }
     try { drawPalmInner(x, t, p); } finally { if (ANIME) x.restore(); }
   }
   function drawPalmInner(x, t, p) {
@@ -841,65 +834,140 @@
   const JUANI = { body: '#B8703E', light: '#C88A55', legs: '#9C5A30', legsB: '#8A4E28', shade: '#A0602F', head: '#BE7845', ear: '#8A4A26', muzzle: '#6E4028', nose: '#2A1C18', collar: '#D4537E', tag: '#E87BA4' };
   function tinted(c) { const o = {}; for (const k in c) o[k] = T(c[k]); return o; }
 
-  // Estilo anime: los cuatro en primer plano, sobre la loma, mirando el Estrecho
-  const FAM = { x: 1250, feet: 1012, k: 1.14 };
-  let famBig, famBigTmp;
+  // Estilo anime: los cuatro de perfil caminando sin moverse del sitio; el camino pasa bajo sus pies
+  const WALK = { gy: 846, x: 610, k: 1, cycle: 0.62 };      // suelo, posición de Ale, escala, ciclos de paso por segundo
+  const STRIDE = 2 * 2 * 166 * Math.sin(0.33) * 0.98;       // px que avanza el camino por ciclo
+  let walkCv, walkTmp, walkOff = 0, walkLastRt = 0, walkDir = 1, walkAmp = 1;
+  function walkState(ms) {
+    const st = sunTimes(ms), a = st.rise + 20 * 6e4, b = st.set - 15 * 6e4, back = st.set + 75 * 6e4;
+    if (ms >= a && ms <= b) return 1;          // de paseo hacia el Estrecho
+    if (ms > b && ms <= back) return -1;       // volviendo al faro
+    return 0;                                  // de noche, parados mirando el mar
+  }
   function drawFamilyAnime(x, ms, t) {
+    if (!window.HZWalk) return;
+    const rt = performance.now() / 1000, dt = walkLastRt ? Math.min(0.1, rt - walkLastRt) : 0; walkLastRt = rt;
+    const mode = walkState(ms);
+    // transición suave entre andar y quedarse quietos
+    const targetAmp = mode === 0 ? 0 : 1;
+    walkAmp += (targetAmp - walkAmp) * Math.min(1, dt * 1.5);
+    if (mode !== 0) walkDir = mode;
+    const amp = walkAmp < 0.04 ? 0 : 0.33 * walkAmp;
+    walkOff += walkDir * STRIDE * WALK.cycle * walkAmp * dt;
+    S.walkOff = walkOff;
+    const ph = rt * WALK.cycle * Math.PI * 2;
     const g = clamp((ms - new Date(CFG.juanitaBirth).getTime()) / (DAYMS * 300), 0, 1);
-    const L = window.HZChars && window.HZChars(outfit(new Date(ms).getMonth()), g);
-    if (!L || !L.ready) return;
-    const q = CFG.quality, w = Math.ceil(600 * q), h = Math.ceil(480 * q);
-    if (!famBig) { famBig = document.createElement('canvas'); famBig.width = w; famBig.height = h; famBigTmp = document.createElement('canvas'); famBigTmp.width = w; famBigTmp.height = h; }
-    const f = famBig.getContext('2d');
-    f.setTransform(1, 0, 0, 1, 0, 0); f.clearRect(0, 0, w, h); f.setTransform(q, 0, 0, q, 0, 0);
-    // respiración muy leve y pelo de Ana al viento
-    const wind = 0.6 + (S.weather.wind || 10) / 18;
-    f.save(); f.translate(0, 460); f.scale(1, 1 + Math.sin(t * 1.6) * 0.003); f.translate(0, -460);
-    f.drawImage(L.base, 0, 0, 600, 480);
-    const [px, py] = L.hairPivot, sw = (Math.sin(t * 0.9) * 0.6 + Math.sin(t * 2.3) * 0.25) * 0.035 * wind;
-    f.translate(px, py); f.transform(1, 0, sw, 1, 0, 0); f.rotate(sw * 0.25); f.translate(-px, -py);
-    f.drawImage(L.hair, 0, 0, 600, 480);
-    f.restore();
+    const B = window.HZWalk.box, q = CFG.quality, bw = B.right - B.left, bh = B.bottom - B.top;
+    const w = Math.ceil(bw * q), h = Math.ceil(bh * q);
+    if (!walkCv) { walkCv = document.createElement('canvas'); walkCv.width = w; walkCv.height = h; walkTmp = document.createElement('canvas'); walkTmp.width = w; walkTmp.height = h; }
+    const f = walkCv.getContext('2d');
+    f.setTransform(1, 0, 0, 1, 0, 0); f.clearRect(0, 0, w, h);
+    // mirando al sentido de la marcha
+    if (walkDir > 0) f.setTransform(q, 0, 0, q, -B.left * q, -B.top * q);
+    else f.setTransform(-q, 0, 0, q, B.right * q, -B.top * q);
+    window.HZWalk(f, outfit(new Date(ms).getMonth()), g, ph, amp, rt, 0.6 + (S.weather.wind || 10) / 18);
     f.setTransform(1, 0, 0, 1, 0, 0);
-    // tono de la hora (más azul de noche, cálido al atardecer) y sombra hacia los pies
+    // tono de la hora y sombra hacia los pies
     f.globalCompositeOperation = 'source-atop';
-    if (S.pal.ambK > 0) { f.fillStyle = rgba(S.pal.amb, Math.min(0.6, S.pal.ambK * 1.15)); f.fillRect(0, 0, w, h); }
-    const sh = f.createLinearGradient(0, h * 0.45, 0, h); sh.addColorStop(0, 'rgba(30,20,40,0)'); sh.addColorStop(1, 'rgba(30,20,40,0.28)');
+    if (S.pal.ambK > 0) { f.fillStyle = rgba(S.pal.amb, Math.min(0.55, S.pal.ambK * 1.1)); f.fillRect(0, 0, w, h); }
+    const sh = f.createLinearGradient(0, h * 0.5, 0, h); sh.addColorStop(0, 'rgba(30,20,40,0)'); sh.addColorStop(1, 'rgba(30,20,40,0.22)');
     f.fillStyle = sh; f.fillRect(0, 0, w, h);
     f.globalCompositeOperation = 'source-over';
-    // luz de contorno del lado del sol (o de la luna)
-    const X0 = FAM.x, Y0 = FAM.feet - 460 * FAM.k, cxW = X0 + 330 * FAM.k;
+    // luz de contorno del lado del sol o de la luna
+    const X0 = WALK.x + (walkDir > 0 ? B.left : -B.right), Y0 = WALK.gy + B.top, cxW = X0 + bw / 2;
     let lx = 0, col = '#FFFFFF', a = 0;
-    if (S.sun.vis) { lx = S.sun.x > cxW ? 1 : -1; col = mix(S.pal.sun, '#FFFFFF', S.e < 15 ? 0.1 : 0.45); a = S.e < 15 ? 1 : 0.75; }
+    if (S.sun.vis) { lx = S.sun.x > cxW ? 1 : -1; col = mix(S.pal.sun, '#FFFFFF', S.e < 15 ? 0.1 : 0.45); a = S.e < 15 ? 1 : 0.7; }
     else if (S.moon.vis && S.night > 0.4) { lx = S.moon.x > cxW ? 1 : -1; col = '#B4C6FF'; a = 0.6; }
-    const tm = famBigTmp.getContext('2d');
+    const tm = walkTmp.getContext('2d');
     const strip = (dx, dy, c, al) => {
       tm.setTransform(1, 0, 0, 1, 0, 0); tm.globalCompositeOperation = 'source-over'; tm.clearRect(0, 0, w, h);
-      tm.drawImage(famBig, 0, 0); tm.globalCompositeOperation = 'source-in'; tm.fillStyle = c; tm.fillRect(0, 0, w, h);
-      tm.globalCompositeOperation = 'destination-out'; tm.drawImage(famBig, dx, dy);
-      f.globalCompositeOperation = 'source-atop'; f.globalAlpha = al; f.drawImage(famBigTmp, 0, 0); f.globalAlpha = 1; f.globalCompositeOperation = 'source-over';
+      tm.drawImage(walkCv, 0, 0); tm.globalCompositeOperation = 'source-in'; tm.fillStyle = c; tm.fillRect(0, 0, w, h);
+      tm.globalCompositeOperation = 'destination-out'; tm.drawImage(walkCv, dx, dy);
+      f.globalCompositeOperation = 'source-atop'; f.globalAlpha = al; f.drawImage(walkTmp, 0, 0); f.globalAlpha = 1; f.globalCompositeOperation = 'source-over';
     };
-    const d = 4 * q;
-    if (lx) strip(lx * d * 1.6, d * 0.4, '#1A1438', 0.3);
-    if (a > 0) strip(-lx * d, d * 0.5, col, a);
-    // sombra en el suelo y la familia encima
-    const shx = S.sun.vis ? (S.sun.x > cxW ? -1 : 1) : 0;
-    x.save(); x.translate(cxW + shx * 60, FAM.feet + 2); x.scale(1, 0.12);
-    const sg = x.createRadialGradient(0, 0, 0, 0, 0, 330); sg.addColorStop(0, `rgba(30,18,24,${S.e > 0 ? 0.35 : 0.2})`); sg.addColorStop(1, 'rgba(30,18,24,0)');
-    x.fillStyle = sg; x.fillRect(-340, -340, 680, 680); x.restore();
-    x.drawImage(famBig, X0, Y0, 600 * FAM.k, 480 * FAM.k);
+    if (a > 0) strip(-lx * 3.2 * q, 1.5 * q, col, a);
+    // sombras en el camino
+    const shx = S.sun.vis ? (S.sun.x > cxW ? -1 : 1) * 40 : 0;
+    x.save(); x.translate(cxW + shx, WALK.gy + 2); x.scale(1, 0.06);
+    const sg = x.createRadialGradient(0, 0, 0, 0, 0, bw * 0.55); sg.addColorStop(0, `rgba(40,24,30,${S.e > 0 ? 0.32 : 0.18})`); sg.addColorStop(1, 'rgba(40,24,30,0)');
+    x.fillStyle = sg; x.fillRect(-bw, -bw, bw * 2, bw * 2); x.restore();
+    x.drawImage(walkCv, X0, Y0, bw, bh);
   }
 
-  // Hierba del primer plano, se mece con el viento
-  const BLADES = Array.from({ length: 170 }, () => { const xx = 1120 + rnd() * 820; return { x: xx, y: 1000 + rnd() * 90 - (xx < 1250 ? -30 : 0), h: 18 + rnd() * 40, p: rnd() * 6.28, c: rnd() }; });
+  // Franja del camino: se pinta una vez en un lienzo que se repite y se desplaza al ritmo del paso
+  const WK_TOP = 790, WK_H = H - WK_TOP;
+  let walkTile = null;
+  function buildWalkTile(p) {
+    const q = CFG.quality;
+    if (!walkTile) { walkTile = document.createElement('canvas'); walkTile.width = Math.ceil(W * q); walkTile.height = Math.ceil(WK_H * q); }
+    const x = walkTile.getContext('2d'); x.setTransform(q, 0, 0, q, 0, 0); x.clearRect(0, 0, W, WK_H);
+    const r = rng(404), wrap = (fn) => { fn(0); fn(W); fn(-W); };
+    const pathY = WALK.gy - WK_TOP;                       // línea donde pisan
+    const grassTop = mix(p.bush, p.sun, 0.12), grassDark = mix(p.bush, '#000000', 0.3), dirt = mix(p.path, p.ground, 0.25), dirtS = mix(p.path, p.cliffSh, 0.35);
+    // borde de hierba y matas detrás del camino
+    const gg = x.createLinearGradient(0, 0, 0, pathY - 6); gg.addColorStop(0, rgba(grassTop, 0)); gg.addColorStop(0.35, grassTop); gg.addColorStop(1, mix(grassTop, p.ground, 0.3));
+    x.fillStyle = gg; x.beginPath(); x.moveTo(0, 30);
+    for (let X = 0; X <= W; X += 24) x.lineTo(X, 26 + Math.sin(X * 0.013) * 6 + Math.sin(X * 0.051) * 3);
+    x.lineTo(W, pathY); x.lineTo(0, pathY); x.closePath(); x.fill();
+    for (let i = 0; i < 26; i++) {
+      const bx = r() * W, bw = 50 + r() * 90, bh = 16 + r() * 22, c = r() < 0.5 ? grassDark : mix(p.bush, p.ground, 0.2);
+      wrap(o => { x.fillStyle = c; x.beginPath(); x.ellipse(bx + o, 34, bw / 2, bh, 0, Math.PI, 0); x.fill(); x.fillStyle = mix(c, p.sun, 0.25); x.beginPath(); x.ellipse(bx + o - bw * 0.12, 30, bw * 0.25, bh * 0.45, 0, Math.PI, 0); x.fill(); });
+    }
+    // camino de tierra
+    const dg = x.createLinearGradient(0, pathY - 18, 0, pathY + 44); dg.addColorStop(0, mix(dirt, p.sun, 0.18)); dg.addColorStop(1, dirtS);
+    x.fillStyle = dg; x.beginPath(); x.moveTo(0, pathY - 16);
+    for (let X = 0; X <= W; X += 30) x.lineTo(X, pathY - 16 + Math.sin(X * 0.02) * 2);
+    for (let X = W; X >= 0; X -= 30) x.lineTo(X, pathY + 40 + Math.sin(X * 0.017) * 4);
+    x.closePath(); x.fill();
+    // huellas, piedras y guijarros
+    for (let i = 0; i < 160; i++) {
+      const sx = r() * W, sy = pathY - 12 + r() * 50, sr = 1.5 + r() * (r() < 0.12 ? 9 : 3.5), sc = r() < 0.5 ? mix(dirtS, '#000000', 0.15) : mix(p.path, '#FFFFFF', 0.2);
+      wrap(o => { x.fillStyle = sc; x.beginPath(); x.ellipse(sx + o, sy, sr * 1.4, sr * 0.7, 0, 0, Math.PI * 2); x.fill(); if (sr > 5) { x.fillStyle = rgba(p.sun, 0.35); x.beginPath(); x.ellipse(sx + o - sr * 0.3, sy - sr * 0.3, sr * 0.6, sr * 0.25, 0, 0, Math.PI * 2); x.fill(); } });
+    }
+    // talud de hierba hacia el primer plano
+    const sg = x.createLinearGradient(0, pathY + 30, 0, WK_H); sg.addColorStop(0, mix(p.bush, p.sun, 0.15)); sg.addColorStop(1, mix(p.bush, '#000000', 0.35));
+    x.fillStyle = sg; x.beginPath(); x.moveTo(0, pathY + 36);
+    for (let X = 0; X <= W; X += 30) x.lineTo(X, pathY + 36 + Math.sin(X * 0.017) * 4);
+    x.lineTo(W, WK_H); x.lineTo(0, WK_H); x.closePath(); x.fill();
+    x.lineCap = 'round';
+    for (let i = 0; i < 700; i++) {
+      const gx = r() * W, gy = pathY + 40 + r() * (WK_H - pathY - 40), hh = 6 + r() * 16, c = r() < 0.4 ? grassDark : mix(p.bush, p.sun, 0.3 + r() * 0.3);
+      wrap(o => { x.strokeStyle = rgba(c, 0.85); x.lineWidth = 1.8; x.beginPath(); x.moveTo(gx + o, gy); x.quadraticCurveTo(gx + o + 2, gy - hh * 0.6, gx + o + 4, gy - hh); x.stroke(); });
+    }
+    // flores silvestres
+    const flowers = ['#FFFFFF', '#F6D45A', '#E89AB8', '#B9A4E8'];
+    for (let i = 0; i < 110; i++) {
+      const fx = r() * W, fy = pathY + 44 + r() * (WK_H - pathY - 50), fc = flowers[Math.floor(r() * 4)];
+      wrap(o => { x.fillStyle = fc; x.beginPath(); x.arc(fx + o, fy, 2 + r() * 1.5, 0, Math.PI * 2); x.fill(); });
+    }
+    // pitas (agaves) y postes de madera de vez en cuando
+    for (let i = 0; i < 3; i++) {
+      const ax = 300 + i * 640 + r() * 120, ay = pathY + 70 + r() * 40, ac = mix('#6E8C78', p.sun, 0.12);
+      wrap(o => { for (let k = -4; k <= 4; k++) { const an = -Math.PI / 2 + k * 0.32, L = 40 - Math.abs(k) * 4; x.fillStyle = k % 2 ? ac : mix(ac, '#000000', 0.2); x.beginPath(); x.moveTo(ax + o - 6, ay); x.lineTo(ax + o + Math.cos(an) * L, ay + Math.sin(an) * L); x.lineTo(ax + o + 6, ay); x.closePath(); x.fill(); } });
+    }
+    for (let i = 0; i < 2; i++) {
+      const px = 520 + i * 960;
+      wrap(o => { x.fillStyle = mix('#6A4A34', p.cliffSh, 0.3); x.fillRect(px + o, pathY - 70, 9, 60); x.fillStyle = rgba(p.sun, 0.35); x.fillRect(px + o, pathY - 70, 3, 60); x.strokeStyle = 'rgba(40,28,22,.7)'; x.lineWidth = 1.5; x.strokeRect(px + o, pathY - 70, 9, 60); });
+    }
+  }
+  function drawWalkway(x, t, p) {
+    if (!ANIME || !walkTile) return;
+    const off = ((S.walkOff || 0) % W + W) % W;
+    x.drawImage(walkTile, -off, WK_TOP, W, WK_H); x.drawImage(walkTile, W - off, WK_TOP, W, WK_H);
+  }
+
+  // Hierba alta del primer plano: se mece y pasa algo más rápido que el camino (profundidad)
+  const BLADES = Array.from({ length: 150 }, () => ({ x: rnd() * W, y: 1030 + rnd() * 60, h: 26 + rnd() * 50, p: rnd() * 6.28, c: rnd() }));
   function drawGrass(x, t, p) {
     if (!ANIME) return;
-    const wind = 0.5 + (S.weather.wind || 10) / 20, base = mix(p.bush, p.ground, 0.15), lit = mix(p.bush, p.sun, 0.45), dark = mix(p.bush, '#000000', 0.3);
+    const wind = 0.5 + (S.weather.wind || 10) / 20, base = mix(p.bush, p.ground, 0.1), lit = mix(p.bush, p.sun, 0.45), dark = mix(p.bush, '#000000', 0.35);
+    const off = (S.walkOff || 0) * 1.35;
     x.lineCap = 'round';
     for (const b of BLADES) {
+      const bx = ((b.x - off) % W + W) % W;
       const bend = Math.sin(t * 1.3 + b.x * 0.02 + b.p) * 6 * wind + 4;
-      x.strokeStyle = T(b.c < 0.3 ? dark : b.c > 0.8 ? lit : base); x.lineWidth = 2.6;
-      x.beginPath(); x.moveTo(b.x, b.y); x.quadraticCurveTo(b.x + bend * 0.3, b.y - b.h * 0.6, b.x + bend, b.y - b.h); x.stroke();
+      x.strokeStyle = T(b.c < 0.3 ? dark : b.c > 0.8 ? lit : base); x.lineWidth = 3.2;
+      x.beginPath(); x.moveTo(bx, b.y); x.quadraticCurveTo(bx + bend * 0.3, b.y - b.h * 0.6, bx + bend, b.y - b.h); x.stroke();
     }
   }
 
@@ -1002,7 +1070,7 @@
     S.moon.vis = S.moon.vis && S.moon.x > 40 && S.moon.x < W - 40 && (S.night > 0.1 || ph.fraction > 0.3);
     S.pal = palette(S.e, S.morning, S.weather.cc);
   }
-  function rebuild() { buildSky(S.pal); buildSea(S.pal); buildLand(S.pal); if (ANIME) buildCloudSprites(S.pal); }
+  function rebuild() { buildSky(S.pal); buildSea(S.pal); buildLand(S.pal); if (ANIME) { buildCloudSprites(S.pal); buildWalkTile(S.pal); } }
 
   let lastFrame = 0, lastSim = 0, holdUntil = 0;
   function frame(ts) {
@@ -1026,7 +1094,7 @@
     x.drawImage(L3, 0, 0, W, H);
     drawFoam(x, t, p);
     drawBeam(x, t);
-    if (ANIME) { drawPalm(x, t, p); drawFamily(x, ms, t); drawGrass(x, t, p); }
+    if (ANIME) { drawPalm(x, t, p); drawWalkway(x, t, p); drawFamily(x, ms, t); drawGrass(x, t, p); }
     else { drawFamily(x, ms, t); drawPalm(x, t, p); }
     drawLightFx(x, t, p);
     drawRain(x, t);
