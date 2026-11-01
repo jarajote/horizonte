@@ -843,54 +843,72 @@
     if (ms >= a && ms <= back) return 1;       // de paseo, siempre hacia la derecha
     return 0;                                  // de noche, parados mirando el mar
   }
+  // Ilustraciones de Ale y Ana y de Leo y Juanita (img/pareja.png, img/perros.png), ya mirando a la derecha
+  const SPR = {};
+  ['pareja', 'perros'].forEach(n => { const im = new Image(); im.src = 'img/' + n + '.png'; SPR[n] = im; });
+  const COUPLE = { h: 430, x: 410, hand: [520, 469], sw: 608, sh: 860 };
+  const DOGS = { s: 0.37, x: 770, leo: [411, 144], jua: [219, 332], sw: 524, sh: 420 };
   function drawFamilyAnime(x, ms, t) {
-    if (!window.HZWalk) return;
+    const P1 = SPR.pareja, P2 = SPR.perros;
+    if (!P1.complete || !P1.naturalWidth || !P2.complete || !P2.naturalWidth) return;
     const rt = performance.now() / 1000, dt = walkLastRt ? Math.min(0.1, rt - walkLastRt) : 0; walkLastRt = rt;
     const mode = walkState(ms);
-    // transición suave entre andar y quedarse quietos
-    const targetAmp = mode === 0 ? 0 : 1;
-    walkAmp += (targetAmp - walkAmp) * Math.min(1, dt * 1.5);
-    if (mode !== 0) walkDir = mode;
-    const amp = walkAmp < 0.04 ? 0 : 0.33 * walkAmp;
-    walkOff += walkDir * STRIDE * WALK.cycle * walkAmp * dt;
+    walkAmp += ((mode === 0 ? 0 : 1) - walkAmp) * Math.min(1, dt * 1.5);
+    walkOff += 62 * walkAmp * dt;                       // el camino pasa despacio, al ritmo del paseo
     S.walkOff = walkOff;
-    const ph = rt * WALK.cycle * Math.PI * 2;
-    const g = clamp((ms - new Date(CFG.juanitaBirth).getTime()) / (DAYMS * 300), 0, 1);
-    const B = window.HZWalk.box, q = CFG.quality, bw = B.right - B.left, bh = B.bottom - B.top;
-    const w = Math.ceil(bw * q), h = Math.ceil(bh * q);
-    if (!walkCv) { walkCv = document.createElement('canvas'); walkCv.width = w; walkCv.height = h; walkTmp = document.createElement('canvas'); walkTmp.width = w; walkTmp.height = h; }
+    const ph = rt * Math.PI * 2 * 0.9, A = walkAmp;
+    const cs = COUPLE.h / COUPLE.sh, cw = COUPLE.sw * cs, ch = COUPLE.h;
+    const ds = DOGS.s, dw = DOGS.sw * ds, dh = DOGS.sh * ds;
+    // lienzo del grupo: de la pareja a los perros
+    const gx0 = COUPLE.x - 20, gy0 = WALK.gy - ch - 20, gw = DOGS.x + dw + 30 - gx0, gh = ch + 34, q = CFG.quality;
+    const w = Math.ceil(gw * q), h = Math.ceil(gh * q);
+    if (!walkCv || walkCv.width !== w || walkCv.height !== h) { walkCv = document.createElement('canvas'); walkCv.width = w; walkCv.height = h; walkTmp = document.createElement('canvas'); walkTmp.width = w; walkTmp.height = h; }
     const f = walkCv.getContext('2d');
-    f.setTransform(1, 0, 0, 1, 0, 0); f.clearRect(0, 0, w, h);
-    // mirando al sentido de la marcha
-    if (walkDir > 0) f.setTransform(q, 0, 0, q, -B.left * q, -B.top * q);
-    else f.setTransform(-q, 0, 0, q, B.right * q, -B.top * q);
-    window.HZWalk(f, outfit(new Date(ms).getMonth()), g, ph, amp, rt, 0.6 + (S.weather.wind || 10) / 18);
+    f.setTransform(1, 0, 0, 1, 0, 0); f.clearRect(0, 0, w, h); f.setTransform(q, 0, 0, q, -gx0 * q, -gy0 * q);
+    // pareja: sube y baja con cada paso, el cuerpo se balancea y las piernas se mecen
+    const bob = -Math.abs(Math.sin(ph)) * 5 * A, lean = Math.sin(ph) * 0.006 * A;
+    const top = WALK.gy - ch + bob, split = 0.52;
+    f.save(); f.translate(COUPLE.x + cw / 2, WALK.gy); f.rotate(lean); f.translate(-(COUPLE.x + cw / 2), -WALK.gy);
+    f.drawImage(P1, 0, 0, COUPLE.sw, COUPLE.sh * split, COUPLE.x, top, cw, ch * split);
+    const N = 24;
+    for (let i = 0; i < N; i++) {
+      const v0 = split + (1 - split) * i / N, v1 = split + (1 - split) * (i + 1) / N, k = (i + 0.5) / N;
+      const dx = Math.sin(ph) * 7 * A * k;
+      f.drawImage(P1, 0, COUPLE.sh * v0, COUPLE.sw, COUPLE.sh * (v1 - v0) + 1, COUPLE.x + dx, top + ch * v0, cw, ch * (v1 - v0) + 1);
+    }
+    f.restore();
+    // perros: trote con rebote
+    const dbob = -Math.abs(Math.sin(ph * 1.5 + 0.6)) * 4 * A, dsq = 1 + Math.sin(ph * 3) * 0.012 * A;
+    f.save(); f.translate(DOGS.x + dw / 2, WALK.gy); f.scale(1 / dsq, dsq); f.translate(-(DOGS.x + dw / 2), -WALK.gy);
+    f.drawImage(P2, DOGS.x, WALK.gy - dh + dbob + 2, dw, dh);
+    f.restore();
+    // correas desde la mano de Ale
+    const hx = COUPLE.x + COUPLE.hand[0] * cs + Math.sin(ph) * 2 * A, hy = top + COUPLE.hand[1] * cs;
+    const leo = [DOGS.x + DOGS.leo[0] * ds, WALK.gy - dh + dbob + 2 + DOGS.leo[1] * ds], jua = [DOGS.x + DOGS.jua[0] * ds, WALK.gy - dh + dbob + 2 + DOGS.jua[1] * ds];
+    f.strokeStyle = '#3A2A22'; f.lineWidth = 2; f.lineCap = 'round';
+    [leo, jua].forEach((d, i) => { f.beginPath(); f.moveTo(hx, hy); f.quadraticCurveTo((hx + d[0]) / 2, Math.max(hy, d[1]) + 18 + i * 16, d[0], d[1]); f.stroke(); });
     f.setTransform(1, 0, 0, 1, 0, 0);
-    // tono de la hora y sombra hacia los pies
+    // tono de la hora y luz de contorno
     f.globalCompositeOperation = 'source-atop';
-    if (S.pal.ambK > 0) { f.fillStyle = rgba(S.pal.amb, Math.min(0.55, S.pal.ambK * 1.1)); f.fillRect(0, 0, w, h); }
-    const sh = f.createLinearGradient(0, h * 0.5, 0, h); sh.addColorStop(0, 'rgba(30,20,40,0)'); sh.addColorStop(1, 'rgba(30,20,40,0.22)');
-    f.fillStyle = sh; f.fillRect(0, 0, w, h);
+    if (S.pal.ambK > 0) { f.fillStyle = rgba(S.pal.amb, Math.min(0.5, S.pal.ambK * 1.05)); f.fillRect(0, 0, w, h); }
     f.globalCompositeOperation = 'source-over';
-    // luz de contorno del lado del sol o de la luna
-    const X0 = WALK.x + (walkDir > 0 ? B.left : -B.right), Y0 = WALK.gy + B.top, cxW = X0 + bw / 2;
+    const cxW = gx0 + gw / 2;
     let lx = 0, col = '#FFFFFF', a = 0;
-    if (S.sun.vis) { lx = S.sun.x > cxW ? 1 : -1; col = mix(S.pal.sun, '#FFFFFF', S.e < 15 ? 0.1 : 0.45); a = S.e < 15 ? 1 : 0.7; }
-    else if (S.moon.vis && S.night > 0.4) { lx = S.moon.x > cxW ? 1 : -1; col = '#B4C6FF'; a = 0.6; }
-    const tm = walkTmp.getContext('2d');
-    const strip = (dx, dy, c, al) => {
+    if (S.sun.vis) { lx = S.sun.x > cxW ? 1 : -1; col = mix(S.pal.sun, '#FFFFFF', S.e < 15 ? 0.1 : 0.45); a = S.e < 15 ? 0.85 : 0.45; }
+    else if (S.moon.vis && S.night > 0.4) { lx = S.moon.x > cxW ? 1 : -1; col = '#B4C6FF'; a = 0.5; }
+    if (a > 0) {
+      const tm = walkTmp.getContext('2d');
       tm.setTransform(1, 0, 0, 1, 0, 0); tm.globalCompositeOperation = 'source-over'; tm.clearRect(0, 0, w, h);
-      tm.drawImage(walkCv, 0, 0); tm.globalCompositeOperation = 'source-in'; tm.fillStyle = c; tm.fillRect(0, 0, w, h);
-      tm.globalCompositeOperation = 'destination-out'; tm.drawImage(walkCv, dx, dy);
-      f.globalCompositeOperation = 'source-atop'; f.globalAlpha = al; f.drawImage(walkTmp, 0, 0); f.globalAlpha = 1; f.globalCompositeOperation = 'source-over';
-    };
-    if (a > 0) strip(-lx * 3.2 * q, 1.5 * q, col, a);
-    // sombras en el camino
-    const shx = S.sun.vis ? (S.sun.x > cxW ? -1 : 1) * 40 : 0;
-    x.save(); x.translate(cxW + shx, WALK.gy + 2); x.scale(1, 0.06);
-    const sg = x.createRadialGradient(0, 0, 0, 0, 0, bw * 0.55); sg.addColorStop(0, `rgba(40,24,30,${S.e > 0 ? 0.32 : 0.18})`); sg.addColorStop(1, 'rgba(40,24,30,0)');
-    x.fillStyle = sg; x.fillRect(-bw, -bw, bw * 2, bw * 2); x.restore();
-    x.drawImage(walkCv, X0, Y0, bw, bh);
+      tm.drawImage(walkCv, 0, 0); tm.globalCompositeOperation = 'source-in'; tm.fillStyle = col; tm.fillRect(0, 0, w, h);
+      tm.globalCompositeOperation = 'destination-out'; tm.drawImage(walkCv, -lx * 3 * q, 1.5 * q);
+      f.globalCompositeOperation = 'source-atop'; f.globalAlpha = a; f.drawImage(walkTmp, 0, 0); f.globalAlpha = 1; f.globalCompositeOperation = 'source-over';
+    }
+    // sombra suave en el camino
+    const shx = S.sun.vis ? (S.sun.x > cxW ? -1 : 1) * 30 : 0;
+    x.save(); x.translate(cxW + shx, WALK.gy + 2); x.scale(1, 0.05);
+    const sg = x.createRadialGradient(0, 0, 0, 0, 0, gw * 0.55); sg.addColorStop(0, `rgba(40,24,30,${S.e > 0 ? 0.3 : 0.16})`); sg.addColorStop(1, 'rgba(40,24,30,0)');
+    x.fillStyle = sg; x.fillRect(-gw, -gw, gw * 2, gw * 2); x.restore();
+    x.drawImage(walkCv, gx0, gy0, gw, gh);
   }
 
   // Franja del camino: se pinta una vez en un lienzo que se repite y se desplaza al ritmo del paso
@@ -929,9 +947,9 @@
     for (let X = 0; X <= W; X += 30) x.lineTo(X, pathY + 36 + Math.sin(X * 0.017) * 4);
     x.lineTo(W, WK_H); x.lineTo(0, WK_H); x.closePath(); x.fill();
     x.lineCap = 'round';
-    for (let i = 0; i < 700; i++) {
-      const gx = r() * W, gy = pathY + 40 + r() * (WK_H - pathY - 40), hh = 6 + r() * 16, c = r() < 0.4 ? grassDark : mix(p.bush, p.sun, 0.3 + r() * 0.3);
-      wrap(o => { x.strokeStyle = rgba(c, 0.85); x.lineWidth = 1.8; x.beginPath(); x.moveTo(gx + o, gy); x.quadraticCurveTo(gx + o + 2, gy - hh * 0.6, gx + o + 4, gy - hh); x.stroke(); });
+    for (let i = 0; i < 420; i++) {
+      const gx = r() * W, gy = pathY + 40 + r() * (WK_H - pathY - 40), c = r() < 0.5 ? grassDark : mix(p.bush, p.sun, 0.25 + r() * 0.25);
+      wrap(o => { x.fillStyle = rgba(c, 0.18); x.beginPath(); x.ellipse(gx + o, gy, 14 + r() * 26, 3 + r() * 5, 0, 0, Math.PI * 2); x.fill(); });
     }
     // flores silvestres
     const flowers = ['#FFFFFF', '#F6D45A', '#E89AB8', '#B9A4E8'];
@@ -939,8 +957,8 @@
       const fx = r() * W, fy = pathY + 44 + r() * (WK_H - pathY - 50), fc = flowers[Math.floor(r() * 4)];
       wrap(o => { x.fillStyle = fc; x.beginPath(); x.arc(fx + o, fy, 2 + r() * 1.5, 0, Math.PI * 2); x.fill(); });
     }
-    // pitas (agaves) y postes de madera de vez en cuando
-    for (let i = 0; i < 3; i++) {
+    // postes de madera de vez en cuando
+    for (let i = 0; i < 0; i++) {
       const ax = 300 + i * 640 + r() * 120, ay = pathY + 70 + r() * 40, ac = mix('#6E8C78', p.sun, 0.12);
       wrap(o => { for (let k = -4; k <= 4; k++) { const an = -Math.PI / 2 + k * 0.32, L = 40 - Math.abs(k) * 4; x.fillStyle = k % 2 ? ac : mix(ac, '#000000', 0.2); x.beginPath(); x.moveTo(ax + o - 6, ay); x.lineTo(ax + o + Math.cos(an) * L, ay + Math.sin(an) * L); x.lineTo(ax + o + 6, ay); x.closePath(); x.fill(); } });
     }
@@ -958,7 +976,7 @@
   // Hierba alta del primer plano: se mece y pasa algo más rápido que el camino (profundidad)
   const BLADES = Array.from({ length: 150 }, () => ({ x: rnd() * W, y: 1030 + rnd() * 60, h: 26 + rnd() * 50, p: rnd() * 6.28, c: rnd() }));
   function drawGrass(x, t, p) {
-    if (!ANIME) return;
+    if (!ANIME || !CFG.tallGrass) return;
     const wind = 0.5 + (S.weather.wind || 10) / 20, base = mix(p.bush, p.ground, 0.1), lit = mix(p.bush, p.sun, 0.45), dark = mix(p.bush, '#000000', 0.35);
     const off = (S.walkOff || 0) * 1.35;
     x.lineCap = 'round';

@@ -1,15 +1,16 @@
 {
-  "version": 8,
+  "version": 9,
   "minNative": 1,
   "files": [
     "index.html",
     "scene.js",
-    "characters.js",
     "ui.js",
     "fonts/fraunces-latin-300-normal.woff2",
     "fonts/fraunces-latin-400-normal.woff2",
     "fonts/manrope-latin-400-normal.woff2",
     "fonts/manrope-latin-500-normal.woff2",
-    "fonts/manrope-latin-600-normal.woff2"
+    "fonts/manrope-latin-600-normal.woff2",
+    "img/pareja.png",
+    "img/perros.png"
   ]
 }
